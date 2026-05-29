@@ -1,0 +1,336 @@
+"use client";
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, Copy, ShoppingCart, Palette } from "lucide-react";
+
+// Real EPDM colors from the RAL palette in the PDF - most popular for rubber surfaces
+const EPDM_COLORS = [
+  { ral: "RAL 3020", name: "Красный", hex: "#CC0605", group: "red" },
+  { ral: "RAL 2004", name: "Оранжевый", hex: "#F44611", group: "orange" },
+  { ral: "RAL 1023", name: "Желтый", hex: "#FAD201", group: "yellow" },
+  { ral: "RAL 6018", name: "Зеленый", hex: "#57A639", group: "green" },
+  { ral: "RAL 5015", name: "Голубой", hex: "#2271B3", group: "blue" },
+  { ral: "RAL 5002", name: "Синий", hex: "#20214F", group: "blue" },
+  { ral: "RAL 4006", name: "Пурпурный", hex: "#A03472", group: "purple" },
+  { ral: "RAL 9010", name: "Белый", hex: "#F4F4F4", group: "light", textDark: true },
+  { ral: "RAL 7035", name: "Светло-серый", hex: "#CBD0CC", group: "gray", textDark: true },
+  { ral: "RAL 7016", name: "Антрацит", hex: "#293133", group: "dark" },
+  { ral: "RAL 9005", name: "Черный", hex: "#0E0E10", group: "dark" },
+  { ral: "RAL 3015", name: "Розовый", hex: "#E8B4B8", group: "pink", textDark: true },
+  { ral: "RAL 1028", name: "Дынный", hex: "#FF9B00", group: "orange" },
+  { ral: "RAL 6027", name: "Светло-зеленый", hex: "#78B368", group: "green" },
+  { ral: "RAL 5012", name: "Нептун синий", hex: "#0E4FA2", group: "blue" },
+  { ral: "RAL 3027", name: "Малиновый", hex: "#C0021F", group: "red" },
+];
+
+interface ColorZone {
+  name: string;
+  percentage: number;
+  color: typeof EPDM_COLORS[0] | null;
+}
+
+const initialZones: ColorZone[] = [
+  { name: "Основной слой", percentage: 70, color: EPDM_COLORS[4] },
+  { name: "Декоративная вставка", percentage: 20, color: EPDM_COLORS[0] },
+  { name: "Разметка / акцент", percentage: 10, color: EPDM_COLORS[2] },
+];
+
+export default function ColorMixerPage() {
+  const [zones, setZones] = useState<ColorZone[]>(initialZones);
+  const [activeZone, setActiveZone] = useState<number>(0);
+  const [area, setArea] = useState(100);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const totalPercent = zones.reduce((s, z) => s + z.percentage, 0);
+
+  const setZoneColor = (zoneIdx: number, color: typeof EPDM_COLORS[0]) => {
+    setZones((prev) => prev.map((z, i) => i === zoneIdx ? { ...z, color } : z));
+  };
+
+  const copyMix = () => {
+    const text = zones.map(z => `${z.color?.ral ?? "—"} (${z.name}): ${z.percentage}% — ${z.color ? Math.round(area * z.percentage / 100 * 7 * 1.1) : 0} кг`).join("\n");
+    navigator.clipboard.writeText(text);
+    setCopied("mix");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="pt-20 min-h-screen bg-gray-50">
+      <div className="container-custom py-10">
+
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center">
+              <Palette className="w-5 h-5 text-accent-DEFAULT" />
+            </div>
+            <span className="text-accent-DEFAULT font-semibold text-sm uppercase tracking-wider">
+              Цветовой конструктор
+            </span>
+          </div>
+          <h1 className="text-h1 font-bold text-gray-900">Миксер цветов EPDM</h1>
+          <p className="text-gray-500 mt-2 max-w-xl">
+            Выберите цвета для каждой зоны покрытия из палитры RAL. Система автоматически пересчитает
+            необходимое количество крошки каждого оттенка.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* LEFT: Preview */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="lg:col-span-1"
+          >
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="font-bold text-gray-900 text-sm">Предпросмотр покрытия</h3>
+              </div>
+
+              {/* Visual preview — playground */}
+              <div className="relative h-64 overflow-hidden">
+                {/* Simulated playground with color zones */}
+                <svg viewBox="0 0 320 256" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+                  {/* Background = zone 0 */}
+                  <rect x="0" y="0" width="320" height="256" fill={zones[0].color?.hex ?? "#ccc"} />
+                  {/* Decorative insert = zone 1 */}
+                  <ellipse cx="160" cy="128" rx="90" ry="70" fill={zones[1].color?.hex ?? "#eee"} opacity="0.9" />
+                  <ellipse cx="160" cy="128" rx="65" ry="50" fill={zones[0].color?.hex ?? "#ccc"} />
+                  {/* Marking lines = zone 2 */}
+                  <rect x="40" y="60" width="240" height="6" rx="3" fill={zones[2].color?.hex ?? "#fff"} opacity="0.85" />
+                  <rect x="40" y="190" width="240" height="6" rx="3" fill={zones[2].color?.hex ?? "#fff"} opacity="0.85" />
+                  <rect x="60" y="66" width="6" height="130" rx="3" fill={zones[2].color?.hex ?? "#fff"} opacity="0.85" />
+                  <rect x="254" y="66" width="6" height="130" rx="3" fill={zones[2].color?.hex ?? "#fff"} opacity="0.85" />
+                  {/* Center circle */}
+                  <circle cx="160" cy="128" r="30" stroke={zones[2].color?.hex ?? "#fff"} strokeWidth="5" fill="none" opacity="0.85" />
+                  {/* Zone labels */}
+                  {zones.map((z, i) => {
+                    const positions = [{ x: 30, y: 30 }, { x: 160, y: 128 }, { x: 160, y: 85 }];
+                    const pos = positions[i];
+                    if (!pos) return null;
+                    return (
+                      <text
+                        key={i}
+                        x={pos.x}
+                        y={pos.y}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fill={z.color?.textDark ? "#333" : "#fff"}
+                        fontWeight="600"
+                        opacity="0.9"
+                      >
+                        {z.color?.ral ?? "—"}
+                      </text>
+                    );
+                  })}
+                </svg>
+
+                {/* Animation shimmer */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"
+                  animate={{ x: ["-100%", "100%"] }}
+                  transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+                />
+              </div>
+
+              {/* Zone strip */}
+              <div className="flex h-8">
+                {zones.map((z, i) => (
+                  <motion.div
+                    key={i}
+                    style={{ flex: z.percentage, backgroundColor: z.color?.hex ?? "#eee" }}
+                    animate={{ flex: z.percentage }}
+                    transition={{ type: "spring", stiffness: 200, damping: 30 }}
+                    className="relative overflow-hidden"
+                  >
+                    <span
+                      className="absolute inset-0 flex items-center justify-center text-[9px] font-bold"
+                      style={{ color: z.color?.textDark ? "#333" : "#fff" }}
+                    >
+                      {z.percentage}%
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Area input */}
+            <div className="mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Площадь покрытия: <span className="text-accent-DEFAULT">{area} м²</span>
+              </label>
+              <input
+                type="range"
+                min={10}
+                max={2000}
+                step={10}
+                value={area}
+                onChange={(e) => setArea(Number(e.target.value))}
+                className="w-full accent-accent-DEFAULT"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>10 м²</span>
+                <span>2000 м²</span>
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-gray-900 text-sm">Расчёт количества</h4>
+                <button
+                  onClick={copyMix}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-accent-DEFAULT transition-colors"
+                >
+                  {copied === "mix" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  Скопировать
+                </button>
+              </div>
+              <div className="space-y-2">
+                {zones.map((z, i) => {
+                  const kg = Math.round(area * (z.percentage / 100) * 7 * 1.1);
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div
+                        className="w-4 h-4 rounded-full flex-shrink-0 border border-gray-200"
+                        style={{ backgroundColor: z.color?.hex ?? "#eee" }}
+                      />
+                      <div className="flex-1 text-xs text-gray-600">
+                        <span className="font-medium">{z.color?.ral ?? "—"}</span>
+                        <span className="text-gray-400 ml-1">({z.name})</span>
+                      </div>
+                      <span className="text-xs font-bold text-gray-900">{kg.toLocaleString("ru")} кг</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Итого (все цвета):</span>
+                  <span className="font-bold text-gray-900">
+                    {zones.reduce((s, z) => s + Math.round(area * (z.percentage / 100) * 7 * 1.1), 0).toLocaleString("ru")} кг
+                  </span>
+                </div>
+              </div>
+              <button className="btn-accent w-full mt-4 flex items-center justify-center gap-2 text-sm">
+                <ShoppingCart className="w-4 h-4" />
+                Заказать этот микс
+              </button>
+            </div>
+          </motion.div>
+
+          {/* RIGHT: Zone selector + palette */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="lg:col-span-2 space-y-6"
+          >
+            {/* Zones */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-bold text-gray-900 mb-4">Зоны покрытия</h3>
+              <div className="space-y-4">
+                {zones.map((zone, i) => (
+                  <motion.div
+                    key={i}
+                    whileHover={{ x: 2 }}
+                    onClick={() => setActiveZone(i)}
+                    className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
+                      activeZone === i
+                        ? "bg-accent-light border-2 border-accent-DEFAULT"
+                        : "bg-gray-50 border-2 border-transparent hover:border-gray-200"
+                    }`}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex-shrink-0 shadow-sm border border-gray-200"
+                      style={{ backgroundColor: zone.color?.hex ?? "#eee" }}
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm text-gray-900">{zone.name}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {zone.color ? `${zone.color.ral} — ${zone.color.name}` : "Цвет не выбран"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={5}
+                        max={90}
+                        step={5}
+                        value={zone.percentage}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setZones((prev) => prev.map((z, idx) => idx === i ? { ...z, percentage: val } : z));
+                        }}
+                        className="w-28 accent-accent-DEFAULT"
+                      />
+                      <span className="text-sm font-bold text-accent-DEFAULT w-10 text-right">
+                        {zone.percentage}%
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              {totalPercent !== 100 && (
+                <p className="text-xs text-amber-600 mt-3 bg-amber-50 px-3 py-2 rounded-lg">
+                  ⚠ Сумма процентов: {totalPercent}% (рекомендуется 100%)
+                </p>
+              )}
+            </div>
+
+            {/* Color palette */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900">Палитра EPDM по RAL</h3>
+                <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                  Выбрана зона: {zones[activeZone]?.name}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {EPDM_COLORS.map((color, ci) => {
+                  const isActive = zones[activeZone]?.color?.ral === color.ral;
+                  return (
+                    <motion.button
+                      key={color.ral}
+                      whileHover={{ scale: 1.12, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setZoneColor(activeZone, color)}
+                      title={`${color.ral} — ${color.name}`}
+                      className={`relative aspect-square rounded-xl transition-all ${
+                        isActive ? "ring-2 ring-offset-2 ring-accent-DEFAULT shadow-accent" : ""
+                      }`}
+                      style={{ backgroundColor: color.hex }}
+                    >
+                      {isActive && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Check
+                            className="w-4 h-4"
+                            style={{ color: color.textDark ? "#333" : "#fff" }}
+                          />
+                        </div>
+                      )}
+                      <span className="sr-only">{color.ral} {color.name}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-4">
+                Показаны наиболее востребованные цвета для покрытий EPDM. Доступен подбор
+                любого оттенка по таблице RAL — уточните у менеджера.
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,109 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
+import { Award, Building2, Clock, Layers, Users, Zap } from "lucide-react";
+
+interface StatItem {
+  icon: React.ElementType;
+  value: number;
+  suffix: string;
+  prefix?: string;
+  label: string;
+  color: string;
+}
+
+const stats: StatItem[] = [
+  { icon: Zap, value: 10, suffix: "+ т/сут", label: "Производительность", color: "text-amber-500" },
+  { icon: Building2, value: 1000, suffix: "+", label: "Выполненных объектов", color: "text-blue-500" },
+  { icon: Clock, value: 10, suffix: " лет", label: "Опыт работы на рынке", color: "text-purple-500" },
+  { icon: Layers, value: 22, prefix: "min ", suffix: "%", label: "Каучука в составе EPDM", color: "text-green-500" },
+  { icon: Users, value: 500, suffix: "+", label: "Клиентов по всей России", color: "text-rose-500" },
+  { icon: Award, value: 5, suffix: " лет", label: "Гарантия на покрытие", color: "text-accent-DEFAULT" },
+];
+
+function AnimatedNumber({
+  value,
+  suffix,
+  prefix,
+  isVisible,
+}: {
+  value: number;
+  suffix: string;
+  prefix?: string;
+  isVisible: boolean;
+}) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const duration = 1500;
+    const steps = 50;
+    const increment = value / steps;
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      setCurrent(Math.min(Math.round(increment * step), value));
+      if (step >= steps) clearInterval(timer);
+    }, duration / steps);
+    return () => clearInterval(timer);
+  }, [isVisible, value]);
+
+  return (
+    <span>
+      {prefix}
+      {current.toLocaleString("ru")}
+      {suffix}
+    </span>
+  );
+}
+
+export default function StatsCounter() {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <section className="py-20 bg-gray-900 text-white relative overflow-hidden">
+      {/* Decorative background */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent-DEFAULT/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px]" />
+      </div>
+
+      <div className="container-custom relative z-10" ref={ref}>
+        <div className="text-center mb-12">
+          <h2 className="text-h2 font-bold text-white">Наши результаты</h2>
+          <p className="text-gray-400 mt-3">В цифрах о работе MOSEPDM</p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5 lg:gap-8">
+          {stats.map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={isInView ? { opacity: 1, scale: 1 } : {}}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+                className="relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center hover:bg-white/8 transition-colors"
+              >
+                <div className={`w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4 ${stat.color}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className={`text-3xl lg:text-4xl font-black mb-2 ${stat.color}`}>
+                  <AnimatedNumber
+                    value={stat.value}
+                    suffix={stat.suffix}
+                    prefix={stat.prefix}
+                    isVisible={isInView}
+                  />
+                </div>
+                <p className="text-gray-400 text-sm">{stat.label}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
